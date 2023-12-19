@@ -1,0 +1,46 @@
+version: "3.9"
+services:
+  keycloak:
+    container_name: keycloak
+    build: ./
+    restart: always
+    command: start-dev
+    environment:
+      KC_DB_URL_HOST: ${DB_HOST}
+      KC_DB_URL_DATABASE: ${DB_NAME}
+      KC_DB_USERNAME: ${DB_USERNAME}
+      KC_DB_PASSWORD: ${DB_PASSWORD}
+      KC_DB_SCHEMA: ${DEFAULT_SCHEMA}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_DEFAULT_USERNAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_DEFAULT_PASSWORD}
+    ports:
+      - ${KEYCLOAK_PORT}:8080
+    depends_on:
+      postgres_keycloak:
+        condition: service_healthy
+    networks:
+      - keycloak-network
+  
+  postgres_keycloak:
+    container_name: database
+    image: postgres:14.4
+    command: postgres -c 'max-connections=200'
+    volumes:
+      - pg_data-keycloak:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: 'exit 0'
+    ports:
+      - ${DB_PORT}:5432
+    networks:
+      - keycloak-network
+
+networks:
+  keycloak-network:
+    driver: bridge
+
+volumes:
+  pg_data-keycloak:
