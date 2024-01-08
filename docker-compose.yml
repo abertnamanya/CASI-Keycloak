@@ -4,20 +4,29 @@ services:
     container_name: keycloak
     build: ./
     restart: always
-    command: start-dev
     environment:
-      KC_DB_URL_HOST: ${DB_HOST}
-      KC_DB_URL_DATABASE: ${DB_NAME}
+      KC_DB_URL_HOST: ${DB_ADDR}
+      KC_DB_URL_DATABASE: ${DB_DATABASE}
       KC_DB_USERNAME: ${DB_USERNAME}
       KC_DB_PASSWORD: ${DB_PASSWORD}
-      KC_DB_SCHEMA: ${DEFAULT_SCHEMA}
       KEYCLOAK_ADMIN: ${KEYCLOAK_DEFAULT_USERNAME}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_DEFAULT_PASSWORD}
+      KC_PROXY: edge
+      PROXY_ADDRESS_FORWARDING: true
+      KEYCLOAK_PRODUCTION: true
+      KEYCLOAK_JDBC_PARAMS: sslmode=disable&connectTimeout=40000
+      KEYCLOAK_EXTRA_ARGS: "-Dkeycloak.profile.feature.scripts=enabled"
+      KEYCLOAK_ENABLE_HTTPS: true
+      KC_HOSTNAME: ${HOSTNAME}
+      # KEYCLOAK_HTTPS_USE_PEM: true
+      KEYCLOAK_HTTPS_CERTIFICATE_FILE: /etc/nginx/certs/apache-selfsigned.crt
+      KEYCLOAK_HTTPS_CERTIFICATE_KEY_FILE: /etc/nginx/certs/apache-selfsigned.key
+
     ports:
       - ${KEYCLOAK_PORT}:8080
     depends_on:
-      postgres_keycloak:
-        condition: service_healthy
+      - postgres_keycloak
+        # condition: service_healthy
     networks:
       - keycloak-network
   
@@ -28,13 +37,24 @@ services:
     volumes:
       - pg_data-keycloak:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     healthcheck:
       test: 'exit 0'
     ports:
       - ${DB_PORT}:5432
+    networks:
+      - keycloak-network
+  
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/server.conf:/etc/nginx/nginx.conf
+      - ./certs:/etc/nginx/certs
     networks:
       - keycloak-network
 
